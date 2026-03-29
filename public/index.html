@@ -632,6 +632,13 @@
     let allPRs = [];
     let allRepos = [];
 
+    function ghHeaders(token) {
+      return {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${token}`,
+      };
+    }
+
     async function loadRepos() {
       const username = document.getElementById('username').value.trim();
       const token = document.getElementById('token').value.trim();
@@ -646,15 +653,38 @@
       btn.textContent = 'Loading...';
 
       try {
-        const params = new URLSearchParams({ username, token });
-        const res = await fetch(`/api/repos?${params}`);
+        const repos = [];
+        let page = 1;
 
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Failed to load repos');
+        while (true) {
+          const res = await fetch(
+            `https://api.github.com/user/repos?per_page=100&page=${page}&sort=updated&direction=desc&affiliation=owner,collaborator,organization_member`,
+            { headers: ghHeaders(token) }
+          );
+
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'Failed to load repos');
+          }
+
+          const data = await res.json();
+          if (data.length === 0) break;
+
+          for (const repo of data) {
+            repos.push({
+              fullName: repo.full_name,
+              name: repo.name,
+              owner: repo.owner.login,
+              private: repo.private,
+              updatedAt: repo.updated_at,
+            });
+          }
+
+          if (data.length < 100) break;
+          page++;
         }
 
-        allRepos = await res.json();
+        allRepos = repos;
         renderRepoList(allRepos);
         document.getElementById('repoSection').classList.add('visible');
       } catch (err) {
@@ -726,7 +756,26 @@
         .map(cb => cb.value);
     }
 
-    function fetchPRs(fetchAll = false) {
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function mapItems(items) {
+      return items.map(item => ({
+        title: item.title,
+        url: item.html_url,
+        repo: item.repository_url.replace('https://api.github.com/repos/', ''),
+        state: item.state,
+        merged: !!item.pull_request?.merged_at,
+        mergedAt: item.pull_request?.merged_at || null,
+        createdAt: item.created_at,
+        closedAt: item.closed_at || null,
+        number: item.number,
+        labels: item.labels.map(l => l.name),
+      }));
+    }
+
+    async function fetchPRs(fetchAll = false) {
       const username = document.getElementById('username').value.trim();
       const token = document.getElementById('token').value.trim();
 
@@ -755,47 +804,88 @@
       document.getElementById('summaryPanel').classList.remove('visible');
       updateCounts();
 
-      const params = new URLSearchParams({ username, token });
-      if (selectedRepos.length > 0) {
-        params.set('repos', selectedRepos.join(','));
-      }
-      if (startDate) params.set('startDate', startDate);
-      if (endDate) params.set('endDate', endDate);
+      let dateQuery = '';
+      if (startDate) dateQuery += ` created:>=${startDate}`;
+      if (endDate) dateQuery += ` created:<=${endDate}`;
 
-      const source = new EventSource(`/api/prs?${params}`);
+      try {
+        if (selectedRepos.length > 0) {
+          let grandTotal = 0;
+          for (const repo of selectedRepos) {
+            document.getElementById('statusText').textContent = `Fetching ${repo}...`;
 
-      source.addEventListener('status', (e) => {
-        const { message } = JSON.parse(e.data);
-        document.getElementById('statusText').textContent = message;
-      });
+            let page = 1;
+            while (true) {
+              const q = `type:pr author:${username} repo:${repo}${dateQuery}`;
+              const res = await fetch(
+                `https://api.github.com/search/issues?q=${encodeURIComponent(q)}&per_page=100&page=${page}&sort=created&order=desc`,
+                { headers: ghHeaders(token) }
+              );
 
-      source.addEventListener('prs', (e) => {
-        const { prs, total } = JSON.parse(e.data);
-        allPRs.push(...prs);
-        document.getElementById('statusText').textContent = `Fetched ${total} PRs so far...`;
-        appendPRRows(prs);
-        updateCounts();
-      });
+              if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'API request failed');
+              }
 
-      source.addEventListener('done', (e) => {
-        const { total } = JSON.parse(e.data);
-        document.getElementById('statusText').textContent = `Done! Found ${total} pull requests.`;
-        document.getElementById('spinner').style.display = 'none';
-        document.getElementById('fetchBtn').disabled = false;
-        source.close();
-      });
+              const data = await res.json();
+              if (data.items.length === 0) break;
 
-      source.addEventListener('error', (e) => {
-        if (e.data) {
-          const { message } = JSON.parse(e.data);
-          document.getElementById('statusText').textContent = `Error: ${message}`;
+              const prs = mapItems(data.items);
+              grandTotal += prs.length;
+              allPRs.push(...prs);
+              document.getElementById('statusText').textContent = `Fetched ${grandTotal} PRs so far...`;
+              appendPRRows(prs);
+              updateCounts();
+
+              if (data.items.length < 100 || grandTotal >= 1000) break;
+              page++;
+              await sleep(2000);
+            }
+            await sleep(2000);
+          }
+
+          document.getElementById('statusText').textContent = `Done! Found ${grandTotal} pull requests.`;
         } else {
-          document.getElementById('statusText').textContent = 'Connection lost.';
+          let page = 1;
+          let total = 0;
+
+          while (true) {
+            document.getElementById('statusText').textContent = `Fetching page ${page}...`;
+
+            const q = `type:pr author:${username}${dateQuery}`;
+            const res = await fetch(
+              `https://api.github.com/search/issues?q=${encodeURIComponent(q)}&per_page=100&page=${page}&sort=created&order=desc`,
+              { headers: ghHeaders(token) }
+            );
+
+            if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.message || 'API request failed');
+            }
+
+            const data = await res.json();
+            if (data.items.length === 0) break;
+
+            const prs = mapItems(data.items);
+            total += prs.length;
+            allPRs.push(...prs);
+            document.getElementById('statusText').textContent = `Fetched ${total} PRs so far...`;
+            appendPRRows(prs);
+            updateCounts();
+
+            if (data.items.length < 100 || total >= 1000) break;
+            page++;
+            await sleep(2000);
+          }
+
+          document.getElementById('statusText').textContent = `Done! Found ${total} pull requests.`;
         }
+      } catch (err) {
+        document.getElementById('statusText').textContent = `Error: ${err.message}`;
+      } finally {
         document.getElementById('spinner').style.display = 'none';
         document.getElementById('fetchBtn').disabled = false;
-        source.close();
-      });
+      }
     }
 
     function appendPRRows(prs) {
