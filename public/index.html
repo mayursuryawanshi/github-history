@@ -1,1050 +1,1318 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GitHub PR History</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0d1117;
-      color: #c9d1d9;
-      min-height: 100vh;
-    }
-
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 40px 20px;
-    }
-
-    h1 {
-      font-size: 28px;
-      color: #f0f6fc;
-      margin-bottom: 8px;
-    }
-
-    h1 span { color: #58a6ff; }
-
-    .subtitle {
-      color: #8b949e;
-      margin-bottom: 32px;
-      font-size: 14px;
-    }
-
-    /* Form */
-    .form-card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
-    }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    .form-group { display: flex; flex-direction: column; gap: 6px; }
-    .form-group.full { grid-column: 1 / -1; }
-
-    label {
-      font-size: 13px;
-      font-weight: 600;
-      color: #8b949e;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    input {
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 10px 14px;
-      color: #c9d1d9;
-      font-size: 14px;
-      transition: border-color 0.2s;
-    }
-
-    input:focus {
-      outline: none;
-      border-color: #58a6ff;
-      box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
-    }
-
-    .btn {
-      background: #238636;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 12px 24px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s;
-      margin-top: 8px;
-    }
-
-    .btn:hover { background: #2ea043; }
-    .btn:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
-
-    .btn-secondary {
-      background: #21262d;
-      color: #c9d1d9;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 12px 24px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-top: 8px;
-    }
-
-    .btn-secondary:hover { background: #30363d; }
-    .btn-secondary:disabled { color: #484f58; cursor: not-allowed; }
-
-    .btn-row {
-      display: flex;
-      gap: 12px;
-    }
-
-    /* Repo picker */
-    .repo-section {
-      display: none;
-      margin-bottom: 24px;
-    }
-
-    .repo-section.visible { display: block; }
-
-    .repo-card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .repo-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 20px;
-      border-bottom: 1px solid #30363d;
-    }
-
-    .repo-header h2 { font-size: 16px; color: #f0f6fc; }
-
-    .repo-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .repo-actions button {
-      background: none;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 4px 12px;
-      color: #8b949e;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .repo-actions button:hover { border-color: #58a6ff; color: #58a6ff; }
-
-    .repo-search {
-      padding: 12px 20px;
-      border-bottom: 1px solid #21262d;
-    }
-
-    .repo-search input {
-      width: 100%;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 8px 12px;
-      color: #c9d1d9;
-      font-size: 13px;
-    }
-
-    .repo-list {
-      max-height: 320px;
-      overflow-y: auto;
-    }
-
-    .repo-list::-webkit-scrollbar { width: 6px; }
-    .repo-list::-webkit-scrollbar-track { background: #161b22; }
-    .repo-list::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
-
-    .repo-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 20px;
-      border-bottom: 1px solid #21262d;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-
-    .repo-item:hover { background: #1c2128; }
-
-    .repo-item input[type="checkbox"] {
-      accent-color: #58a6ff;
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-    }
-
-    .repo-item-info { flex: 1; }
-
-    .repo-item-name {
-      font-size: 14px;
-      color: #58a6ff;
-      font-family: monospace;
-    }
-
-    .repo-item-meta {
-      font-size: 11px;
-      color: #484f58;
-      margin-top: 2px;
-    }
-
-    .repo-badge {
-      font-size: 10px;
-      padding: 2px 8px;
-      border-radius: 12px;
-      background: rgba(139, 148, 158, 0.1);
-      color: #8b949e;
-      border: 1px solid #30363d;
-    }
-
-    .selected-count {
-      font-size: 13px;
-      color: #8b949e;
-    }
-
-    .selected-count strong { color: #58a6ff; }
-
-    /* Status */
-    .status-bar {
-      display: none;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 16px;
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      margin-bottom: 24px;
-      font-size: 14px;
-    }
-
-    .status-bar.visible { display: flex; }
-
-    .spinner {
-      width: 16px; height: 16px;
-      border: 2px solid #30363d;
-      border-top-color: #58a6ff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Summary cards */
-    .summary {
-      display: none;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-
-    .summary.visible { display: grid; }
-
-    .stat-card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 10px;
-      padding: 16px;
-      text-align: center;
-    }
-
-    .stat-card .number {
-      font-size: 32px;
-      font-weight: 700;
-      color: #f0f6fc;
-    }
-
-    .stat-card .label {
-      font-size: 12px;
-      color: #8b949e;
-      margin-top: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .stat-card.merged .number { color: #3fb950; }
-    .stat-card.open .number { color: #d29922; }
-    .stat-card.closed .number { color: #f85149; }
-
-    /* PR table */
-    .results {
-      display: none;
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .results.visible { display: block; }
-
-    .results-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 20px;
-      border-bottom: 1px solid #30363d;
-    }
-
-    .results-header h2 { font-size: 16px; color: #f0f6fc; }
-
-    .filter-tabs {
-      display: flex;
-      gap: 4px;
-    }
-
-    .filter-tab {
-      background: none;
-      border: 1px solid #30363d;
-      border-radius: 20px;
-      padding: 4px 14px;
-      color: #8b949e;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .filter-tab:hover { border-color: #58a6ff; color: #58a6ff; }
-    .filter-tab.active { background: #58a6ff; color: #fff; border-color: #58a6ff; }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    thead th {
-      text-align: left;
-      padding: 12px 20px;
-      font-size: 12px;
-      color: #8b949e;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 1px solid #30363d;
-      background: #0d1117;
-    }
-
-    tbody tr {
-      border-bottom: 1px solid #21262d;
-      transition: background 0.15s;
-      animation: fadeIn 0.3s ease;
-    }
-
-    tbody tr:hover { background: #1c2128; }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    td { padding: 12px 20px; font-size: 14px; }
-
-    td a {
-      color: #58a6ff;
-      text-decoration: none;
-    }
-
-    td a:hover { text-decoration: underline; }
-
-    .badge {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    .badge.merged { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
-    .badge.open { background: rgba(210, 153, 34, 0.15); color: #d29922; }
-    .badge.closed { background: rgba(248, 81, 73, 0.15); color: #f85149; }
-
-    .repo-name {
-      color: #8b949e;
-      font-size: 12px;
-      font-family: monospace;
-    }
-
-    .label-tag {
-      display: inline-block;
-      padding: 1px 6px;
-      border-radius: 12px;
-      font-size: 11px;
-      background: rgba(88, 166, 255, 0.1);
-      color: #58a6ff;
-      margin-left: 4px;
-    }
-
-    /* Summarize button */
-    .btn-summarize {
-      background: #1f6feb;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 12px 24px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s;
-      margin-top: 8px;
-    }
-
-    .btn-summarize:hover { background: #388bfd; }
-    .btn-summarize:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
-
-    /* Summary panel */
-    .summary-panel {
-      display: none;
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      margin-bottom: 24px;
-      overflow: hidden;
-    }
-
-    .summary-panel.visible { display: block; }
-
-    .summary-panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 20px;
-      border-bottom: 1px solid #30363d;
-    }
-
-    .summary-panel-header h2 { font-size: 16px; color: #f0f6fc; }
-
-    .summary-panel-body {
-      padding: 20px;
-      font-size: 14px;
-      line-height: 1.7;
-    }
-
-    .summary-panel-body h3 {
-      font-size: 14px;
-      color: #58a6ff;
-      margin: 16px 0 8px;
-      font-family: monospace;
-    }
-
-    .summary-panel-body h3:first-child { margin-top: 0; }
-
-    .summary-panel-body ul {
-      list-style: none;
-      padding: 0;
-    }
-
-    .summary-panel-body ul li {
-      padding: 3px 0;
-      color: #c9d1d9;
-    }
-
-    .summary-panel-body ul li::before {
-      content: '';
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      margin-right: 10px;
-      vertical-align: middle;
-    }
-
-    .summary-panel-body ul li.merged::before { background: #3fb950; }
-    .summary-panel-body ul li.open::before { background: #d29922; }
-    .summary-panel-body ul li.closed::before { background: #f85149; }
-
-    .summary-overview {
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
-      color: #8b949e;
-      line-height: 1.8;
-    }
-
-    .summary-overview strong { color: #f0f6fc; }
-    .summary-overview .highlight { color: #58a6ff; }
-
-    .copy-btn {
-      background: none;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 4px 12px;
-      color: #8b949e;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .copy-btn:hover { border-color: #58a6ff; color: #58a6ff; }
-
-    @media (max-width: 768px) {
-      .form-grid { grid-template-columns: 1fr; }
-      .summary { grid-template-columns: repeat(2, 1fr); }
-      .results { overflow-x: auto; }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1><span>GitHub</span> PR History</h1>
-    <p class="subtitle">Fetch and view your pull request history for performance reviews</p>
-
-    <!-- Form -->
-    <div class="form-card">
-      <div class="form-grid">
-        <div class="form-group">
-          <label>GitHub Username</label>
-          <input type="text" id="username" value="" placeholder="your-username">
-        </div>
-        <div class="form-group">
-          <label>Personal Access Token</label>
-          <input type="password" id="token" value="" placeholder="ghp_xxxxxxxxxxxx">
-        </div>
-        <div class="form-group">
-          <label>Start Date (optional)</label>
-          <input type="date" id="startDate">
-        </div>
-        <div class="form-group">
-          <label>End Date (optional)</label>
-          <input type="date" id="endDate">
-        </div>
-        <div class="form-group full">
-          <div class="btn-row">
-            <button class="btn-secondary" id="loadReposBtn" onclick="loadRepos()">Load Repositories</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Repo Picker -->
-    <div class="repo-section" id="repoSection">
-      <div class="repo-card">
-        <div class="repo-header">
-          <h2>Select Repositories</h2>
-          <div class="repo-actions">
-            <span class="selected-count" id="selectedCount"><strong>0</strong> selected</span>
-            <button onclick="toggleAllRepos(true)">Select All</button>
-            <button onclick="toggleAllRepos(false)">Deselect All</button>
-          </div>
-        </div>
-        <div class="repo-search">
-          <input type="text" id="repoSearch" placeholder="Search repositories..." oninput="filterRepos()">
-        </div>
-        <div class="repo-list" id="repoList"></div>
-        <div style="padding: 16px 20px; border-top: 1px solid #30363d;">
-          <div class="btn-row">
-            <button class="btn" id="fetchBtn" onclick="fetchPRs()">Fetch Pull Requests</button>
-            <button class="btn-secondary" onclick="fetchPRs(true)">Fetch from All Repos</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Status -->
-    <div class="status-bar" id="statusBar">
-      <div class="spinner" id="spinner"></div>
-      <span id="statusText">Starting...</span>
-    </div>
-
-    <!-- Summary -->
-    <div class="summary" id="summary">
-      <div class="stat-card">
-        <div class="number" id="totalCount">0</div>
-        <div class="label">Total PRs</div>
-      </div>
-      <div class="stat-card merged">
-        <div class="number" id="mergedCount">0</div>
-        <div class="label">Merged</div>
-      </div>
-      <div class="stat-card open">
-        <div class="number" id="openCount">0</div>
-        <div class="label">Open</div>
-      </div>
-      <div class="stat-card closed">
-        <div class="number" id="closedCount">0</div>
-        <div class="label">Closed</div>
-      </div>
-    </div>
-
-    <!-- Summary Panel -->
-    <div class="summary-panel" id="summaryPanel">
-      <div class="summary-panel-header">
-        <h2>Summary</h2>
-        <button class="copy-btn" onclick="copySummary()">Copy to Clipboard</button>
-      </div>
-      <div class="summary-panel-body" id="summaryBody"></div>
-    </div>
-
-    <!-- Results -->
-    <div class="results" id="results">
-      <div class="results-header">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <h2>Pull Requests</h2>
-          <button class="btn-summarize" id="summarizeBtn" onclick="showSummary()" style="margin-top:0; padding:6px 16px; font-size:13px;">Summarize</button>
-        </div>
-        <div class="filter-tabs">
-          <button class="filter-tab active" onclick="filterPRs('all', this)">All</button>
-          <button class="filter-tab" onclick="filterPRs('merged', this)">Merged</button>
-          <button class="filter-tab" onclick="filterPRs('open', this)">Open</button>
-          <button class="filter-tab" onclick="filterPRs('closed', this)">Closed</button>
-        </div>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Title</th>
-            <th>Repository</th>
-            <th>Status</th>
-            <th>Date</th>
-          </tr>
-        </thead>
-        <tbody id="prTableBody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <script>
-    let allPRs = [];
-    let allRepos = [];
-
-    function ghHeaders(token) {
-      return {
-        'Accept': 'application/vnd.github+json',
-        'Authorization': `Bearer ${token}`,
-      };
-    }
-
-    async function loadRepos() {
-      const username = document.getElementById('username').value.trim();
-      const token = document.getElementById('token').value.trim();
-
-      if (!username || !token) {
-        alert('Please enter both username and token.');
-        return;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub PR History</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
       }
 
-      const btn = document.getElementById('loadReposBtn');
-      btn.disabled = true;
-      btn.textContent = 'Loading...';
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: #0d1117;
+        color: #c9d1d9;
+        min-height: 100vh;
+      }
 
-      try {
-        const repos = [];
-        let page = 1;
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 40px 20px;
+      }
 
-        while (true) {
-          const res = await fetch(
-            `https://api.github.com/user/repos?per_page=100&page=${page}&sort=updated&direction=desc&affiliation=owner,collaborator,organization_member`,
-            { headers: ghHeaders(token) }
-          );
+      h1 {
+        font-size: 28px;
+        color: #f0f6fc;
+        margin-bottom: 8px;
+      }
 
-          if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.message || 'Failed to load repos');
-          }
+      h1 span {
+        color: #58a6ff;
+      }
 
-          const data = await res.json();
-          if (data.length === 0) break;
+      .subtitle {
+        color: #8b949e;
+        margin-bottom: 32px;
+        font-size: 14px;
+      }
 
-          for (const repo of data) {
-            repos.push({
-              fullName: repo.full_name,
-              name: repo.name,
-              owner: repo.owner.login,
-              private: repo.private,
-              updatedAt: repo.updated_at,
-            });
-          }
+      /* Form */
+      .form-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+      }
 
-          if (data.length < 100) break;
-          page++;
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form-group.full {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #8b949e;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      input {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 10px 14px;
+        color: #c9d1d9;
+        font-size: 14px;
+        transition: border-color 0.2s;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: #58a6ff;
+        box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+      }
+
+      .btn {
+        background: #238636;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-top: 8px;
+      }
+
+      .btn:hover {
+        background: #2ea043;
+      }
+      .btn:disabled {
+        background: #21262d;
+        color: #484f58;
+        cursor: not-allowed;
+      }
+
+      .btn-secondary {
+        background: #21262d;
+        color: #c9d1d9;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 8px;
+      }
+
+      .btn-secondary:hover {
+        background: #30363d;
+      }
+      .btn-secondary:disabled {
+        color: #484f58;
+        cursor: not-allowed;
+      }
+
+      .btn-row {
+        display: flex;
+        gap: 12px;
+      }
+
+      /* Repo picker */
+      .repo-section {
+        display: none;
+        margin-bottom: 24px;
+      }
+
+      .repo-section.visible {
+        display: block;
+      }
+
+      .repo-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .repo-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #30363d;
+      }
+
+      .repo-header h2 {
+        font-size: 16px;
+        color: #f0f6fc;
+      }
+
+      .repo-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .repo-actions button {
+        background: none;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 4px 12px;
+        color: #8b949e;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .repo-actions button:hover {
+        border-color: #58a6ff;
+        color: #58a6ff;
+      }
+
+      .repo-search {
+        padding: 12px 20px;
+        border-bottom: 1px solid #21262d;
+      }
+
+      .repo-search input {
+        width: 100%;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 8px 12px;
+        color: #c9d1d9;
+        font-size: 13px;
+      }
+
+      .repo-list {
+        max-height: 320px;
+        overflow-y: auto;
+      }
+
+      .repo-list::-webkit-scrollbar {
+        width: 6px;
+      }
+      .repo-list::-webkit-scrollbar-track {
+        background: #161b22;
+      }
+      .repo-list::-webkit-scrollbar-thumb {
+        background: #30363d;
+        border-radius: 3px;
+      }
+
+      .repo-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 20px;
+        border-bottom: 1px solid #21262d;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+
+      .repo-item:hover {
+        background: #1c2128;
+      }
+
+      .repo-item input[type="checkbox"] {
+        accent-color: #58a6ff;
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+      }
+
+      .repo-item-info {
+        flex: 1;
+      }
+
+      .repo-item-name {
+        font-size: 14px;
+        color: #58a6ff;
+        font-family: monospace;
+      }
+
+      .repo-item-meta {
+        font-size: 11px;
+        color: #484f58;
+        margin-top: 2px;
+      }
+
+      .repo-badge {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: rgba(139, 148, 158, 0.1);
+        color: #8b949e;
+        border: 1px solid #30363d;
+      }
+
+      .selected-count {
+        font-size: 13px;
+        color: #8b949e;
+      }
+
+      .selected-count strong {
+        color: #58a6ff;
+      }
+
+      /* Status */
+      .status-bar {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        font-size: 14px;
+      }
+
+      .status-bar.visible {
+        display: flex;
+      }
+
+      .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #30363d;
+        border-top-color: #58a6ff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Summary cards */
+      .summary {
+        display: none;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      .summary.visible {
+        display: grid;
+      }
+
+      .stat-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 16px;
+        text-align: center;
+      }
+
+      .stat-card .number {
+        font-size: 32px;
+        font-weight: 700;
+        color: #f0f6fc;
+      }
+
+      .stat-card .label {
+        font-size: 12px;
+        color: #8b949e;
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .stat-card.merged .number {
+        color: #3fb950;
+      }
+      .stat-card.open .number {
+        color: #d29922;
+      }
+      .stat-card.closed .number {
+        color: #f85149;
+      }
+
+      /* PR table */
+      .results {
+        display: none;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .results.visible {
+        display: block;
+      }
+
+      .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #30363d;
+      }
+
+      .results-header h2 {
+        font-size: 16px;
+        color: #f0f6fc;
+      }
+
+      .filter-tabs {
+        display: flex;
+        gap: 4px;
+      }
+
+      .filter-tab {
+        background: none;
+        border: 1px solid #30363d;
+        border-radius: 20px;
+        padding: 4px 14px;
+        color: #8b949e;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .filter-tab:hover {
+        border-color: #58a6ff;
+        color: #58a6ff;
+      }
+      .filter-tab.active {
+        background: #58a6ff;
+        color: #fff;
+        border-color: #58a6ff;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      thead th {
+        text-align: left;
+        padding: 12px 20px;
+        font-size: 12px;
+        color: #8b949e;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #30363d;
+        background: #0d1117;
+      }
+
+      tbody tr {
+        border-bottom: 1px solid #21262d;
+        transition: background 0.15s;
+        animation: fadeIn 0.3s ease;
+      }
+
+      tbody tr:hover {
+        background: #1c2128;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      td {
+        padding: 12px 20px;
+        font-size: 14px;
+      }
+
+      td a {
+        color: #58a6ff;
+        text-decoration: none;
+      }
+
+      td a:hover {
+        text-decoration: underline;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .badge.merged {
+        background: rgba(63, 185, 80, 0.15);
+        color: #3fb950;
+      }
+      .badge.open {
+        background: rgba(210, 153, 34, 0.15);
+        color: #d29922;
+      }
+      .badge.closed {
+        background: rgba(248, 81, 73, 0.15);
+        color: #f85149;
+      }
+
+      .repo-name {
+        color: #8b949e;
+        font-size: 12px;
+        font-family: monospace;
+      }
+
+      .label-tag {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 12px;
+        font-size: 11px;
+        background: rgba(88, 166, 255, 0.1);
+        color: #58a6ff;
+        margin-left: 4px;
+      }
+
+      /* Summarize button */
+      .btn-summarize {
+        background: #1f6feb;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-top: 8px;
+      }
+
+      .btn-summarize:hover {
+        background: #388bfd;
+      }
+      .btn-summarize:disabled {
+        background: #21262d;
+        color: #484f58;
+        cursor: not-allowed;
+      }
+
+      /* Summary panel */
+      .summary-panel {
+        display: none;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        overflow: hidden;
+      }
+
+      .summary-panel.visible {
+        display: block;
+      }
+
+      .summary-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #30363d;
+      }
+
+      .summary-panel-header h2 {
+        font-size: 16px;
+        color: #f0f6fc;
+      }
+
+      .summary-panel-body {
+        padding: 20px;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+
+      .summary-panel-body h3 {
+        font-size: 14px;
+        color: #58a6ff;
+        margin: 16px 0 8px;
+        font-family: monospace;
+      }
+
+      .summary-panel-body h3:first-child {
+        margin-top: 0;
+      }
+
+      .summary-panel-body ul {
+        list-style: none;
+        padding: 0;
+      }
+
+      .summary-panel-body ul li {
+        padding: 3px 0;
+        color: #c9d1d9;
+      }
+
+      .summary-panel-body ul li::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        margin-right: 10px;
+        vertical-align: middle;
+      }
+
+      .summary-panel-body ul li.merged::before {
+        background: #3fb950;
+      }
+      .summary-panel-body ul li.open::before {
+        background: #d29922;
+      }
+      .summary-panel-body ul li.closed::before {
+        background: #f85149;
+      }
+
+      .summary-overview {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+        color: #8b949e;
+        line-height: 1.8;
+      }
+
+      .summary-overview strong {
+        color: #f0f6fc;
+      }
+      .summary-overview .highlight {
+        color: #58a6ff;
+      }
+
+      .copy-btn {
+        background: none;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 4px 12px;
+        color: #8b949e;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .copy-btn:hover {
+        border-color: #58a6ff;
+        color: #58a6ff;
+      }
+
+      @media (max-width: 768px) {
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+        .summary {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .results {
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1><span>GitHub</span> PR History</h1>
+      <p class="subtitle">
+        Fetch and view your pull request history for performance reviews
+      </p>
+
+      <!-- Form -->
+      <div class="form-card">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>GitHub Username</label>
+            <input
+              type="text"
+              id="username"
+              value=""
+              placeholder="your-username"
+            />
+          </div>
+          <div class="form-group">
+            <label>Personal Access Token</label>
+            <input
+              type="password"
+              id="token"
+              value=""
+              placeholder="ghp_xxxxxxxxxxxx"
+            />
+          </div>
+          <div class="form-group">
+            <label>Start Date (optional)</label>
+            <input type="date" id="startDate" />
+          </div>
+          <div class="form-group">
+            <label>End Date (optional)</label>
+            <input type="date" id="endDate" />
+          </div>
+          <div class="form-group full">
+            <div class="btn-row">
+              <button
+                class="btn-secondary"
+                id="loadReposBtn"
+                onclick="loadRepos()"
+              >
+                Load Repositories
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Repo Picker -->
+      <div class="repo-section" id="repoSection">
+        <div class="repo-card">
+          <div class="repo-header">
+            <h2>Select Repositories</h2>
+            <div class="repo-actions">
+              <span class="selected-count" id="selectedCount"
+                ><strong>0</strong> selected</span
+              >
+              <button onclick="toggleAllRepos(true)">Select All</button>
+              <button onclick="toggleAllRepos(false)">Deselect All</button>
+            </div>
+          </div>
+          <div class="repo-search">
+            <input
+              type="text"
+              id="repoSearch"
+              placeholder="Search repositories..."
+              oninput="filterRepos()"
+            />
+          </div>
+          <div class="repo-list" id="repoList"></div>
+          <div style="padding: 16px 20px; border-top: 1px solid #30363d">
+            <div class="btn-row">
+              <button class="btn" id="fetchBtn" onclick="fetchPRs()">
+                Fetch Pull Requests
+              </button>
+              <button class="btn-secondary" onclick="fetchPRs(true)">
+                Fetch from All Repos
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="status-bar" id="statusBar">
+        <div class="spinner" id="spinner"></div>
+        <span id="statusText">Starting...</span>
+      </div>
+
+      <!-- Summary -->
+      <div class="summary" id="summary">
+        <div class="stat-card">
+          <div class="number" id="totalCount">0</div>
+          <div class="label">Total PRs</div>
+        </div>
+        <div class="stat-card merged">
+          <div class="number" id="mergedCount">0</div>
+          <div class="label">Merged</div>
+        </div>
+        <div class="stat-card open">
+          <div class="number" id="openCount">0</div>
+          <div class="label">Open</div>
+        </div>
+        <div class="stat-card closed">
+          <div class="number" id="closedCount">0</div>
+          <div class="label">Closed</div>
+        </div>
+      </div>
+
+      <!-- Summary Panel -->
+      <div class="summary-panel" id="summaryPanel">
+        <div class="summary-panel-header">
+          <h2>Summary</h2>
+          <button class="copy-btn" onclick="copySummary()">
+            Copy to Clipboard
+          </button>
+        </div>
+        <div class="summary-panel-body" id="summaryBody"></div>
+      </div>
+
+      <!-- Results -->
+      <div class="results" id="results">
+        <div class="results-header">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <h2>Pull Requests</h2>
+            <button
+              class="btn-summarize"
+              id="summarizeBtn"
+              onclick="showSummary()"
+              style="margin-top: 0; padding: 6px 16px; font-size: 13px"
+            >
+              Summarize
+            </button>
+          </div>
+          <div class="filter-tabs">
+            <button class="filter-tab active" onclick="filterPRs('all', this)">
+              All
+            </button>
+            <button class="filter-tab" onclick="filterPRs('merged', this)">
+              Merged
+            </button>
+            <button class="filter-tab" onclick="filterPRs('open', this)">
+              Open
+            </button>
+            <button class="filter-tab" onclick="filterPRs('closed', this)">
+              Closed
+            </button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Title</th>
+              <th>Repository</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="prTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      let allPRs = [];
+      let allRepos = [];
+
+      function ghHeaders(token) {
+        return {
+          Accept: "application/vnd.github+json",
+          Authorization: `Bearer ${token}`,
+        };
+      }
+
+      async function loadRepos() {
+        const username = document.getElementById("username").value.trim();
+        const token = document.getElementById("token").value.trim();
+
+        if (!username || !token) {
+          alert("Please enter both username and token.");
+          return;
         }
 
-        allRepos = repos;
-        renderRepoList(allRepos);
-        document.getElementById('repoSection').classList.add('visible');
-      } catch (err) {
-        alert('Error: ' + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Load Repositories';
-      }
-    }
+        const btn = document.getElementById("loadReposBtn");
+        btn.disabled = true;
+        btn.textContent = "Loading...";
 
-    function renderRepoList(repos) {
-      const list = document.getElementById('repoList');
-      list.innerHTML = '';
+        try {
+          const repos = [];
+          let page = 1;
 
-      for (const repo of repos) {
-        const div = document.createElement('div');
-        div.className = 'repo-item';
-        div.dataset.name = repo.fullName.toLowerCase();
-        div.onclick = (e) => {
-          if (e.target.tagName !== 'INPUT') {
-            const cb = div.querySelector('input');
-            cb.checked = !cb.checked;
+          while (true) {
+            const res = await fetch(
+              `https://api.github.com/user/repos?per_page=100&page=${page}&sort=updated&direction=desc&affiliation=owner,collaborator,organization_member`,
+              { headers: ghHeaders(token) }
+            );
+
+            if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.message || "Failed to load repos");
+            }
+
+            const data = await res.json();
+            if (data.length === 0) break;
+
+            for (const repo of data) {
+              repos.push({
+                fullName: repo.full_name,
+                name: repo.name,
+                owner: repo.owner.login,
+                private: repo.private,
+                updatedAt: repo.updated_at,
+              });
+            }
+
+            if (data.length < 100) break;
+            page++;
           }
-          updateSelectedCount();
-        };
 
-        const updated = new Date(repo.updatedAt).toLocaleDateString('en-US', {
-          year: 'numeric', month: 'short', day: 'numeric'
-        });
+          allRepos = repos;
+          renderRepoList(allRepos);
+          document.getElementById("repoSection").classList.add("visible");
+        } catch (err) {
+          alert("Error: " + err.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Load Repositories";
+        }
+      }
 
-        div.innerHTML = `
+      function renderRepoList(repos) {
+        const list = document.getElementById("repoList");
+        list.innerHTML = "";
+
+        for (const repo of repos) {
+          const div = document.createElement("div");
+          div.className = "repo-item";
+          div.dataset.name = repo.fullName.toLowerCase();
+          div.onclick = (e) => {
+            if (e.target.tagName !== "INPUT") {
+              const cb = div.querySelector("input");
+              cb.checked = !cb.checked;
+            }
+            updateSelectedCount();
+          };
+
+          const updated = new Date(repo.updatedAt).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          });
+
+          div.innerHTML = `
           <input type="checkbox" value="${repo.fullName}">
           <div class="repo-item-info">
             <div class="repo-item-name">${repo.fullName}</div>
             <div class="repo-item-meta">Updated ${updated}</div>
           </div>
-          ${repo.private ? '<span class="repo-badge">Private</span>' : ''}
+          ${repo.private ? '<span class="repo-badge">Private</span>' : ""}
         `;
-        list.appendChild(div);
-      }
-
-      updateSelectedCount();
-    }
-
-    function filterRepos() {
-      const query = document.getElementById('repoSearch').value.toLowerCase();
-      document.querySelectorAll('.repo-item').forEach(item => {
-        item.style.display = item.dataset.name.includes(query) ? '' : 'none';
-      });
-    }
-
-    function toggleAllRepos(select) {
-      const query = document.getElementById('repoSearch').value.toLowerCase();
-      document.querySelectorAll('.repo-item').forEach(item => {
-        if (!query || item.dataset.name.includes(query)) {
-          item.querySelector('input').checked = select;
+          list.appendChild(div);
         }
-      });
-      updateSelectedCount();
-    }
 
-    function updateSelectedCount() {
-      const count = document.querySelectorAll('.repo-item input:checked').length;
-      document.getElementById('selectedCount').innerHTML = `<strong>${count}</strong> selected`;
-    }
-
-    function getSelectedRepos() {
-      return Array.from(document.querySelectorAll('.repo-item input:checked'))
-        .map(cb => cb.value);
-    }
-
-    function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    function mapItems(items) {
-      return items.map(item => ({
-        title: item.title,
-        url: item.html_url,
-        repo: item.repository_url.replace('https://api.github.com/repos/', ''),
-        state: item.state,
-        merged: !!item.pull_request?.merged_at,
-        mergedAt: item.pull_request?.merged_at || null,
-        createdAt: item.created_at,
-        closedAt: item.closed_at || null,
-        number: item.number,
-        labels: item.labels.map(l => l.name),
-      }));
-    }
-
-    async function fetchPRs(fetchAll = false) {
-      const username = document.getElementById('username').value.trim();
-      const token = document.getElementById('token').value.trim();
-
-      if (!username || !token) {
-        alert('Please enter both username and token.');
-        return;
+        updateSelectedCount();
       }
 
-      const startDate = document.getElementById('startDate').value;
-      const endDate = document.getElementById('endDate').value;
-      const selectedRepos = fetchAll ? [] : getSelectedRepos();
-
-      if (!fetchAll && selectedRepos.length === 0) {
-        alert('Please select at least one repository, or click "Fetch from All Repos".');
-        return;
+      function filterRepos() {
+        const query = document.getElementById("repoSearch").value.toLowerCase();
+        document.querySelectorAll(".repo-item").forEach((item) => {
+          item.style.display = item.dataset.name.includes(query) ? "" : "none";
+        });
       }
 
-      // Reset UI
-      allPRs = [];
-      document.getElementById('prTableBody').innerHTML = '';
-      document.getElementById('fetchBtn').disabled = true;
-      document.getElementById('spinner').style.display = '';
-      document.getElementById('statusBar').classList.add('visible');
-      document.getElementById('summary').classList.add('visible');
-      document.getElementById('results').classList.add('visible');
-      document.getElementById('summaryPanel').classList.remove('visible');
-      updateCounts();
+      function toggleAllRepos(select) {
+        const query = document.getElementById("repoSearch").value.toLowerCase();
+        document.querySelectorAll(".repo-item").forEach((item) => {
+          if (!query || item.dataset.name.includes(query)) {
+            item.querySelector("input").checked = select;
+          }
+        });
+        updateSelectedCount();
+      }
 
-      let dateQuery = '';
-      if (startDate) dateQuery += ` created:>=${startDate}`;
-      if (endDate) dateQuery += ` created:<=${endDate}`;
+      function updateSelectedCount() {
+        const count = document.querySelectorAll(
+          ".repo-item input:checked"
+        ).length;
+        document.getElementById(
+          "selectedCount"
+        ).innerHTML = `<strong>${count}</strong> selected`;
+      }
 
-      try {
-        if (selectedRepos.length > 0) {
-          let grandTotal = 0;
-          for (const repo of selectedRepos) {
-            document.getElementById('statusText').textContent = `Fetching ${repo}...`;
+      function getSelectedRepos() {
+        return Array.from(
+          document.querySelectorAll(".repo-item input:checked")
+        ).map((cb) => cb.value);
+      }
 
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      function mapItems(items) {
+        return items.map((item) => ({
+          title: item.title,
+          url: item.html_url,
+          repo: item.repository_url.replace(
+            "https://api.github.com/repos/",
+            ""
+          ),
+          state: item.state,
+          merged: !!item.pull_request?.merged_at,
+          mergedAt: item.pull_request?.merged_at || null,
+          createdAt: item.created_at,
+          closedAt: item.closed_at || null,
+          number: item.number,
+          labels: item.labels.map((l) => l.name),
+        }));
+      }
+
+      async function fetchPRs(fetchAll = false) {
+        const username = document.getElementById("username").value.trim();
+        const token = document.getElementById("token").value.trim();
+
+        if (!username || !token) {
+          alert("Please enter both username and token.");
+          return;
+        }
+
+        const startDate = document.getElementById("startDate").value;
+        const endDate = document.getElementById("endDate").value;
+        const selectedRepos = fetchAll ? [] : getSelectedRepos();
+
+        if (!fetchAll && selectedRepos.length === 0) {
+          alert(
+            'Please select at least one repository, or click "Fetch from All Repos".'
+          );
+          return;
+        }
+
+        // Reset UI
+        allPRs = [];
+        document.getElementById("prTableBody").innerHTML = "";
+        document.getElementById("fetchBtn").disabled = true;
+        document.getElementById("spinner").style.display = "";
+        document.getElementById("statusBar").classList.add("visible");
+        document.getElementById("summary").classList.add("visible");
+        document.getElementById("results").classList.add("visible");
+        document.getElementById("summaryPanel").classList.remove("visible");
+        updateCounts();
+
+        let dateQuery = "";
+        if (startDate) dateQuery += ` created:>=${startDate}`;
+        if (endDate) dateQuery += ` created:<=${endDate}`;
+
+        try {
+          if (selectedRepos.length > 0) {
+            let grandTotal = 0;
+            for (const repo of selectedRepos) {
+              document.getElementById(
+                "statusText"
+              ).textContent = `Fetching ${repo}...`;
+
+              let page = 1;
+              while (true) {
+                const q = `type:pr author:${username} repo:${repo}${dateQuery}`;
+                const res = await fetch(
+                  `https://api.github.com/search/issues?q=${encodeURIComponent(
+                    q
+                  )}&per_page=100&page=${page}&sort=created&order=desc`,
+                  { headers: ghHeaders(token) }
+                );
+
+                if (!res.ok) {
+                  const err = await res.json();
+                  throw new Error(err.message || "API request failed");
+                }
+
+                const data = await res.json();
+                if (data.items.length === 0) break;
+
+                const prs = mapItems(data.items);
+                grandTotal += prs.length;
+                allPRs.push(...prs);
+                document.getElementById(
+                  "statusText"
+                ).textContent = `Fetched ${grandTotal} PRs so far...`;
+                appendPRRows(prs);
+                updateCounts();
+
+                if (data.items.length < 100 || grandTotal >= 1000) break;
+                page++;
+                await sleep(2000);
+              }
+              await sleep(2000);
+            }
+
+            document.getElementById(
+              "statusText"
+            ).textContent = `Done! Found ${grandTotal} pull requests.`;
+          } else {
             let page = 1;
+            let total = 0;
+
             while (true) {
-              const q = `type:pr author:${username} repo:${repo}${dateQuery}`;
+              document.getElementById(
+                "statusText"
+              ).textContent = `Fetching page ${page}...`;
+
+              const q = `type:pr author:${username}${dateQuery}`;
               const res = await fetch(
-                `https://api.github.com/search/issues?q=${encodeURIComponent(q)}&per_page=100&page=${page}&sort=created&order=desc`,
+                `https://api.github.com/search/issues?q=${encodeURIComponent(
+                  q
+                )}&per_page=100&page=${page}&sort=created&order=desc`,
                 { headers: ghHeaders(token) }
               );
 
               if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.message || 'API request failed');
+                throw new Error(err.message || "API request failed");
               }
 
               const data = await res.json();
               if (data.items.length === 0) break;
 
               const prs = mapItems(data.items);
-              grandTotal += prs.length;
+              total += prs.length;
               allPRs.push(...prs);
-              document.getElementById('statusText').textContent = `Fetched ${grandTotal} PRs so far...`;
+              document.getElementById(
+                "statusText"
+              ).textContent = `Fetched ${total} PRs so far...`;
               appendPRRows(prs);
               updateCounts();
 
-              if (data.items.length < 100 || grandTotal >= 1000) break;
+              if (data.items.length < 100 || total >= 1000) break;
               page++;
               await sleep(2000);
             }
-            await sleep(2000);
+
+            document.getElementById(
+              "statusText"
+            ).textContent = `Done! Found ${total} pull requests.`;
           }
-
-          document.getElementById('statusText').textContent = `Done! Found ${grandTotal} pull requests.`;
-        } else {
-          let page = 1;
-          let total = 0;
-
-          while (true) {
-            document.getElementById('statusText').textContent = `Fetching page ${page}...`;
-
-            const q = `type:pr author:${username}${dateQuery}`;
-            const res = await fetch(
-              `https://api.github.com/search/issues?q=${encodeURIComponent(q)}&per_page=100&page=${page}&sort=created&order=desc`,
-              { headers: ghHeaders(token) }
-            );
-
-            if (!res.ok) {
-              const err = await res.json();
-              throw new Error(err.message || 'API request failed');
-            }
-
-            const data = await res.json();
-            if (data.items.length === 0) break;
-
-            const prs = mapItems(data.items);
-            total += prs.length;
-            allPRs.push(...prs);
-            document.getElementById('statusText').textContent = `Fetched ${total} PRs so far...`;
-            appendPRRows(prs);
-            updateCounts();
-
-            if (data.items.length < 100 || total >= 1000) break;
-            page++;
-            await sleep(2000);
-          }
-
-          document.getElementById('statusText').textContent = `Done! Found ${total} pull requests.`;
+        } catch (err) {
+          document.getElementById(
+            "statusText"
+          ).textContent = `Error: ${err.message}`;
+        } finally {
+          document.getElementById("spinner").style.display = "none";
+          document.getElementById("fetchBtn").disabled = false;
         }
-      } catch (err) {
-        document.getElementById('statusText').textContent = `Error: ${err.message}`;
-      } finally {
-        document.getElementById('spinner').style.display = 'none';
-        document.getElementById('fetchBtn').disabled = false;
       }
-    }
 
-    function appendPRRows(prs) {
-      const tbody = document.getElementById('prTableBody');
-      for (const pr of prs) {
-        const tr = document.createElement('tr');
-        tr.dataset.status = pr.merged ? 'merged' : pr.state;
+      function appendPRRows(prs) {
+        const tbody = document.getElementById("prTableBody");
+        for (const pr of prs) {
+          const tr = document.createElement("tr");
+          tr.dataset.status = pr.merged ? "merged" : pr.state;
 
-        const statusClass = pr.merged ? 'merged' : pr.state;
-        const statusText = pr.merged ? 'Merged' : pr.state === 'open' ? 'Open' : 'Closed';
+          const statusClass = pr.merged ? "merged" : pr.state;
+          const statusText = pr.merged
+            ? "Merged"
+            : pr.state === "open"
+            ? "Open"
+            : "Closed";
 
-        const date = pr.merged
-          ? pr.mergedAt?.split('T')[0]
-          : pr.closedAt
-          ? pr.closedAt.split('T')[0]
-          : pr.createdAt.split('T')[0];
+          const date = pr.merged
+            ? pr.mergedAt?.split("T")[0]
+            : pr.closedAt
+            ? pr.closedAt.split("T")[0]
+            : pr.createdAt.split("T")[0];
 
-        const labels = pr.labels.map(l => `<span class="label-tag">${l}</span>`).join('');
+          const labels = pr.labels
+            .map((l) => `<span class="label-tag">${l}</span>`)
+            .join("");
 
-        tr.innerHTML = `
+          tr.innerHTML = `
           <td>#${pr.number}</td>
           <td><a href="${pr.url}" target="_blank">${pr.title}</a>${labels}</td>
           <td><span class="repo-name">${pr.repo}</span></td>
           <td><span class="badge ${statusClass}">${statusText}</span></td>
           <td>${date}</td>
         `;
-        tbody.appendChild(tr);
-      }
-    }
-
-    function updateCounts() {
-      document.getElementById('totalCount').textContent = allPRs.length;
-      document.getElementById('mergedCount').textContent = allPRs.filter(p => p.merged).length;
-      document.getElementById('openCount').textContent = allPRs.filter(p => p.state === 'open').length;
-      document.getElementById('closedCount').textContent = allPRs.filter(p => p.state === 'closed' && !p.merged).length;
-    }
-
-    function filterPRs(status, btn) {
-      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-      btn.classList.add('active');
-
-      document.querySelectorAll('#prTableBody tr').forEach(tr => {
-        if (status === 'all') {
-          tr.style.display = '';
-        } else {
-          tr.style.display = tr.dataset.status === status ? '' : 'none';
+          tbody.appendChild(tr);
         }
-      });
-    }
-
-    function showSummary() {
-      if (allPRs.length === 0) {
-        alert('No PRs to summarize. Fetch pull requests first.');
-        return;
       }
 
-      const username = document.getElementById('username').value.trim();
-      const startDate = document.getElementById('startDate').value;
-      const endDate = document.getElementById('endDate').value;
-      const merged = allPRs.filter(p => p.merged);
-      const open = allPRs.filter(p => p.state === 'open');
-      const closed = allPRs.filter(p => p.state === 'closed' && !p.merged);
-
-      // Group by repo
-      const byRepo = {};
-      for (const pr of allPRs) {
-        if (!byRepo[pr.repo]) byRepo[pr.repo] = [];
-        byRepo[pr.repo].push(pr);
+      function updateCounts() {
+        document.getElementById("totalCount").textContent = allPRs.length;
+        document.getElementById("mergedCount").textContent = allPRs.filter(
+          (p) => p.merged
+        ).length;
+        document.getElementById("openCount").textContent = allPRs.filter(
+          (p) => p.state === "open"
+        ).length;
+        document.getElementById("closedCount").textContent = allPRs.filter(
+          (p) => p.state === "closed" && !p.merged
+        ).length;
       }
 
-      const period = startDate
-        ? `${startDate} to ${endDate || 'present'}`
-        : 'all time';
+      function filterPRs(status, btn) {
+        document
+          .querySelectorAll(".filter-tab")
+          .forEach((t) => t.classList.remove("active"));
+        btn.classList.add("active");
 
-      // Build overview
-      let html = `<div class="summary-overview">`;
-      html += `<strong>@${username}</strong> authored <strong>${allPRs.length}</strong> pull requests`;
-      html += ` across <strong class="highlight">${Object.keys(byRepo).length}</strong> repositories`;
-      html += ` (${period}).<br>`;
-      html += `<strong style="color:#3fb950">${merged.length}</strong> merged`;
-      html += ` &middot; <strong style="color:#d29922">${open.length}</strong> open`;
-      html += ` &middot; <strong style="color:#f85149">${closed.length}</strong> closed (unmerged)`;
-      html += `</div>`;
+        document.querySelectorAll("#prTableBody tr").forEach((tr) => {
+          if (status === "all") {
+            tr.style.display = "";
+          } else {
+            tr.style.display = tr.dataset.status === status ? "" : "none";
+          }
+        });
+      }
 
-      // Per-repo breakdown
-      const sortedRepos = Object.entries(byRepo).sort((a, b) => b[1].length - a[1].length);
+      // TODO: Replace with your deployed Cloudflare Worker URL
+      const WORKER_URL = "https://github-history-ai.suryamayur34.workers.dev";
 
-      for (const [repo, prs] of sortedRepos) {
-        const m = prs.filter(p => p.merged).length;
-        const o = prs.filter(p => p.state === 'open').length;
-        const c = prs.filter(p => p.state === 'closed' && !p.merged).length;
-
-        html += `<h3>${repo} (${prs.length} PRs — ${m} merged, ${o} open, ${c} closed)</h3>`;
-        html += `<ul>`;
-        for (const pr of prs) {
-          const cls = pr.merged ? 'merged' : pr.state;
-          const status = pr.merged ? 'Merged' : pr.state === 'open' ? 'Open' : 'Closed';
-          const date = pr.merged
-            ? pr.mergedAt?.split('T')[0]
-            : pr.closedAt
-            ? pr.closedAt.split('T')[0]
-            : pr.createdAt.split('T')[0];
-          html += `<li class="${cls}">#${pr.number} ${pr.title} — ${status} (${date})</li>`;
+      async function showSummary() {
+        if (allPRs.length === 0) {
+          alert("No PRs to summarize. Fetch pull requests first.");
+          return;
         }
-        html += `</ul>`;
-      }
 
-      document.getElementById('summaryBody').innerHTML = html;
-      document.getElementById('summaryPanel').classList.add('visible');
-      document.getElementById('summaryPanel').scrollIntoView({ behavior: 'smooth' });
-    }
+        const btn = document.getElementById("summarizeBtn");
+        btn.disabled = true;
+        btn.textContent = "Summarizing...";
 
-    function copySummary() {
-      const username = document.getElementById('username').value.trim();
-      const startDate = document.getElementById('startDate').value;
-      const endDate = document.getElementById('endDate').value;
-      const merged = allPRs.filter(p => p.merged);
-      const open = allPRs.filter(p => p.state === 'open');
-      const closed = allPRs.filter(p => p.state === 'closed' && !p.merged);
+        const username = document.getElementById("username").value.trim();
+        const startDate = document.getElementById("startDate").value;
+        const endDate = document.getElementById("endDate").value;
+        const merged = allPRs.filter((p) => p.merged);
+        const open = allPRs.filter((p) => p.state === "open");
+        const closed = allPRs.filter((p) => p.state === "closed" && !p.merged);
 
-      const byRepo = {};
-      for (const pr of allPRs) {
-        if (!byRepo[pr.repo]) byRepo[pr.repo] = [];
-        byRepo[pr.repo].push(pr);
-      }
-
-      const period = startDate
-        ? `${startDate} to ${endDate || 'present'}`
-        : 'all time';
-
-      let text = `GitHub PR Summary — @${username}\n`;
-      text += `Period: ${period}\n`;
-      text += `Total: ${allPRs.length} PRs | ${merged.length} merged | ${open.length} open | ${closed.length} closed\n`;
-      text += `Repositories: ${Object.keys(byRepo).length}\n\n`;
-
-      const sortedRepos = Object.entries(byRepo).sort((a, b) => b[1].length - a[1].length);
-
-      for (const [repo, prs] of sortedRepos) {
-        text += `## ${repo} (${prs.length} PRs)\n`;
-        for (const pr of prs) {
-          const status = pr.merged ? 'Merged' : pr.state === 'open' ? 'Open' : 'Closed';
-          const date = pr.merged
-            ? pr.mergedAt?.split('T')[0]
-            : pr.closedAt
-            ? pr.closedAt.split('T')[0]
-            : pr.createdAt.split('T')[0];
-          text += `  - #${pr.number} ${pr.title} [${status}] (${date})\n`;
+        const byRepo = {};
+        for (const pr of allPRs) {
+          if (!byRepo[pr.repo]) byRepo[pr.repo] = [];
+          byRepo[pr.repo].push(pr);
         }
-        text += `\n`;
+
+        const period = startDate
+          ? `${startDate} to ${endDate || "present"}`
+          : "all time";
+
+        // Show panel with loading state
+        const panel = document.getElementById("summaryPanel");
+        const body = document.getElementById("summaryBody");
+
+        let statsHtml = `<div class="summary-overview">`;
+        statsHtml += `<strong>@${username}</strong> authored <strong>${allPRs.length}</strong> pull requests`;
+        statsHtml += ` across <strong class="highlight">${
+          Object.keys(byRepo).length
+        }</strong> repositories`;
+        statsHtml += ` (${period}).<br>`;
+        statsHtml += `<strong style="color:#3fb950">${merged.length}</strong> merged`;
+        statsHtml += ` &middot; <strong style="color:#d29922">${open.length}</strong> open`;
+        statsHtml += ` &middot; <strong style="color:#f85149">${closed.length}</strong> closed (unmerged)`;
+        statsHtml += `</div>`;
+
+        body.innerHTML =
+          statsHtml +
+          `<div style="padding:20px;text-align:center;color:#8b949e;"><div class="spinner" style="margin:0 auto 12px;"></div>Generating AI summary...</div>`;
+        panel.classList.add("visible");
+        panel.scrollIntoView({ behavior: "smooth" });
+
+        // Build PR data for AI summary
+        const prData = allPRs
+          .map((pr) => {
+            const status = pr.merged
+              ? "Merged"
+              : pr.state === "open"
+              ? "Open"
+              : "Closed";
+            const date = pr.merged
+              ? pr.mergedAt?.split("T")[0]
+              : pr.closedAt
+              ? pr.closedAt.split("T")[0]
+              : pr.createdAt.split("T")[0];
+            return `- #${pr.number} "${pr.title}" [${status}] (${date}) in ${
+              pr.repo
+            }${
+              pr.labels.length ? " [labels: " + pr.labels.join(", ") + "]" : ""
+            }`;
+          })
+          .join("\n");
+
+        const prompt = `Summarize these PRs by @${username} (${period}).
+
+${prData}
+
+Group PRs by repository. For each repo, list each PR on one line with its status (merged/open/closed) and date. Add a single one-line takeaway per repo. No overall summary, no key highlights, no filler. Keep it short.
+
+Output HTML using <h3> for repo names and <ul><li> for PRs. Use CSS class "merged", "open", or "closed" on each <li>.`;
+
+        try {
+          const res = await fetch(WORKER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt }),
+          });
+
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || "AI summary request failed");
+          }
+
+          const data = await res.json();
+          const aiText = data.summary || "No summary generated.";
+
+          // Convert markdown-style to HTML if needed, or use as-is if already HTML
+          const aiHtml = aiText
+            .replace(/```html\n?/g, "")
+            .replace(/```\n?/g, "")
+            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+          body.innerHTML =
+            statsHtml + `<div style="margin-top:16px;">${aiHtml}</div>`;
+        } catch (err) {
+          console.error("AI summarization error:", err);
+          body.innerHTML =
+            statsHtml +
+            `<div style="padding:16px;color:#f85149;">Failed to generate AI summary: ${err.message}. Showing basic summary instead.</div>`;
+
+          // Fallback to basic summary
+          const sortedRepos = Object.entries(byRepo).sort(
+            (a, b) => b[1].length - a[1].length
+          );
+          let fallbackHtml = "";
+          for (const [repo, prs] of sortedRepos) {
+            const m = prs.filter((p) => p.merged).length;
+            const o = prs.filter((p) => p.state === "open").length;
+            const c = prs.filter(
+              (p) => p.state === "closed" && !p.merged
+            ).length;
+            fallbackHtml += `<h3>${repo} (${prs.length} PRs — ${m} merged, ${o} open, ${c} closed)</h3><ul>`;
+            for (const pr of prs) {
+              const cls = pr.merged ? "merged" : pr.state;
+              const status = pr.merged
+                ? "Merged"
+                : pr.state === "open"
+                ? "Open"
+                : "Closed";
+              const date = pr.merged
+                ? pr.mergedAt?.split("T")[0]
+                : pr.closedAt
+                ? pr.closedAt.split("T")[0]
+                : pr.createdAt.split("T")[0];
+              fallbackHtml += `<li class="${cls}">#${pr.number} ${pr.title} — ${status} (${date})</li>`;
+            }
+            fallbackHtml += `</ul>`;
+          }
+          body.innerHTML = statsHtml + fallbackHtml;
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Summarize";
+        }
       }
 
-      navigator.clipboard.writeText(text).then(() => {
-        const btn = document.querySelector('.copy-btn');
-        btn.textContent = 'Copied!';
-        setTimeout(() => { btn.textContent = 'Copy to Clipboard'; }, 2000);
-      });
-    }
-  </script>
-  <script data-goatcounter="https://mayursuryawanshi.goatcounter.com/count"
-          async src="//gc.zgo.at/count.js"></script>
-</body>
+      function copySummary() {
+        const body = document.getElementById("summaryBody");
+        const text = body.innerText || body.textContent;
+
+        navigator.clipboard.writeText(text).then(() => {
+          const btn = document.querySelector(".copy-btn");
+          btn.textContent = "Copied!";
+          setTimeout(() => {
+            btn.textContent = "Copy to Clipboard";
+          }, 2000);
+        });
+      }
+    </script>
+    <script
+      data-goatcounter="https://mayursuryawanshi.goatcounter.com/count"
+      async
+      src="//gc.zgo.at/count.js"
+    ></script>
+  </body>
 </html>
