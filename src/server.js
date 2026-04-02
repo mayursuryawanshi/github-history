@@ -1,14 +1,14 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { fetchUserRepos, streamPRs } from './src/fetchPRs.js';
+import { fetchUserRepos, streamPRs } from './fetchPRs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Fetch repos the user has contributed to
 app.get('/api/repos', async (req, res) => {

@@ -4,9 +4,9 @@
   "packageManager": "yarn@1.22.22",
   "description": "Fetch GitHub PR history for appraisal reports",
   "type": "module",
-  "main": "index.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node src/server.js"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",
