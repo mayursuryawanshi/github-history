@@ -588,6 +588,11 @@
         background: #f85149;
       }
 
+      .summary-panel-body ul li p {
+        margin: 0.45em 0 0;
+        color: #c9d1d9;
+      }
+
       .summary-overview {
         background: #0d1117;
         border: 1px solid #30363d;
@@ -954,7 +959,16 @@
           closedAt: item.closed_at || null,
           number: item.number,
           labels: item.labels.map((l) => l.name),
+          body: item.body || "",
         }));
+      }
+
+      /** Collapse whitespace and cap length for AI context (GitHub search returns PR body). */
+      function prBodyForPrompt(body, maxLen) {
+        if (!body || !String(body).trim()) return "";
+        const oneLine = String(body).replace(/\s+/g, " ").trim();
+        if (oneLine.length <= maxLen) return oneLine;
+        return oneLine.slice(0, maxLen - 3) + "...";
       }
 
       async function fetchPRs(fetchAll = false) {
@@ -1203,7 +1217,8 @@
         panel.classList.add("visible");
         panel.scrollIntoView({ behavior: "smooth" });
 
-        // Build PR data for AI summary
+        // Build PR data for AI summary (title + labels + truncated body for substance)
+        const BODY_MAX = 450;
         const prData = allPRs
           .map((pr) => {
             const status = pr.merged
@@ -1216,27 +1231,40 @@
               : pr.closedAt
               ? pr.closedAt.split("T")[0]
               : pr.createdAt.split("T")[0];
-            return `- #${pr.number} "${pr.title}" [${status}] (${date}) in ${
-              pr.repo
-            }${
-              pr.labels.length ? " [labels: " + pr.labels.join(", ") + "]" : ""
-            }`;
+            const labelPart = pr.labels.length
+              ? ` [labels: ${pr.labels.join(", ")}]`
+              : "";
+            const rawBody = pr.body != null ? pr.body : "";
+            const desc = prBodyForPrompt(rawBody, BODY_MAX);
+            const descPart = desc
+              ? `\n  Description: ${desc}`
+              : "\n  Description: (none — infer only from title and labels)";
+            return `- #${pr.number} "${pr.title}" [${status}] (${date}) in ${pr.repo}${labelPart}${descPart}`;
           })
           .join("\n");
 
-        const prompt = `Summarize these PRs by @${username} (${period}).
+        const prompt = `You are given pull requests authored by @${username} over ${period}. The list below is the full input; use every PR.
 
+For each PR, produce exactly 2–3 sentences that describe what the author did: problem or goal, main change or area, and result or status if clear from the data. Ground every claim in the title, labels, and description; where the description is empty, infer conservatively from the title and labels only.
+
+Data:
 ${prData}
 
-Group PRs by repository. For each repo, list each PR on one line with its status (merged/open/closed) and date. Add a single one-line takeaway per repo. No overall summary, no key highlights, no filler. Keep it short.
+Follow the system instructions for HTML output (<h3> per repo, <ul>/<li> per PR with class merged|open|closed, <strong> for #number and title, <p> for each sentence of detail).`;
 
-Output HTML using <h3> for repo names and <ul><li> for PRs. Use CSS class "merged", "open", or "closed" on each <li>.`;
+        const MAX_PROMPT = 19500;
+        let promptToSend = prompt;
+        if (promptToSend.length > MAX_PROMPT) {
+          promptToSend =
+            promptToSend.slice(0, MAX_PROMPT - 280) +
+            "\n\n[TRUNCATED: input exceeded size limit. Summarize all PRs shown above in full; omit PRs not listed above.]";
+        }
 
         try {
           const res = await fetch(WORKER_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt }),
+            body: JSON.stringify({ prompt: promptToSend }),
           });
 
           if (!res.ok) {

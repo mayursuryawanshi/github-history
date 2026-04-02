@@ -120,6 +120,7 @@ function mapItems(items) {
     closedAt: item.closed_at || null,
     number: item.number,
     labels: item.labels.map(l => l.name),
+    body: item.body || '',
   }));
 }
 

@@ -44,9 +44,9 @@ export default {
       }
 
       // Cap input length to prevent abuse
-      if (prompt.length > 15000) {
+      if (prompt.length > 20000) {
         return Response.json(
-          { error: "Input too long (max 15000 characters)" },
+          { error: "Input too long (max 20000 characters)" },
           { status: 400, headers: corsHeaders }
         );
       }
@@ -57,13 +57,25 @@ export default {
           messages: [
             {
               role: "system",
-              content:
-                "You output concise HTML summaries of GitHub PR data. Only use <h3>, <ul>, <li> tags. No introductions, no overall summaries, no key highlights, no filler text. Just the data grouped by repo.",
+              content: `You turn structured GitHub pull-request lists into an HTML report.
+
+Goals:
+- For EVERY pull request, explain what the author actually did or changed: scope, main changes, and outcome or intent. Use the title, labels, and description/body when provided; infer carefully from the title only when the body is missing—do not invent file names or features that are not implied.
+- Write exactly 2 or 3 full sentences per PR (not one short line). Be specific and concrete; avoid generic phrases like "improved the codebase" unless the title/body supports it.
+- Group PRs by repository. Order repos alphabetically or by relevance (same repo together).
+
+HTML rules:
+- Use <h3> for each repository name (full repo path, e.g. owner/name).
+- Under each <h3>, use <ul> and one <li> per PR. Set class on each <li> to exactly one of: merged, open, closed (matching PR state: merged vs open vs closed-unmerged).
+- Inside each <li>, start with <strong>#number Title</strong>, then the status and key date in plain text, then use <p> tags for each of the 2–3 sentences of detail (one <p> per sentence is fine).
+- You may use <strong> and <p> inside <li>. Do not use markdown. No preamble, no "Here is a summary", no overall conclusion section, no bullet list of highlights across all repos—only per-repo sections as specified.
+
+If there are many PRs, keep each PR to 2–3 sentences and stay substantive; do not skip PRs.`,
             },
             { role: "user", content: prompt },
           ],
-          max_tokens: 4096,
-          temperature: 0.7,
+          max_tokens: 8192,
+          temperature: 0.35,
         }
       );
 
